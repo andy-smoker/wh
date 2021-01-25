@@ -7,7 +7,7 @@ import (
 
 type Authorization interface {
 	CreateUser(user server.User) (int, error)
-	//GetUser(username, password string) (server.User, error)
+	//GenerateToken(username, password string) (string, error)
 }
 
 type Service struct {
