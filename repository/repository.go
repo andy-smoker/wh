@@ -5,11 +5,13 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// интерфейс авторизаци пользователя в программе
 type Authorization interface {
 	CreateUser(user server.User) (int, error)
-	//GetUser(username, password string) (server.User, error)
+	GetUser(username, password string) (server.User, error)
 }
 
+// сруктура репозитория
 type Repository struct {
 	Authorization
 }

@@ -12,6 +12,7 @@ const (
 	userTable = "users"
 )
 
+// создаём новое подключение к postgresql
 func NewPostgresDB(cfg server.Config) (*sqlx.DB, error) {
 	// connect to postgresdb
 	db, err := sqlx.Open("postgres", fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=%s",
