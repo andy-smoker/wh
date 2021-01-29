@@ -7,9 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (h *Handler) signUn(c *gin.Context) {
+func (h *Handler) signUp(c *gin.Context) {
 	var input server.User
-
 	// проверяем валидность введённых данных
 	if err := c.BindJSON(&input); err != nil {
 		newErrorResponse(c, http.StatusBadRequest, "invalid body")
@@ -28,8 +27,8 @@ func (h *Handler) signUn(c *gin.Context) {
 }
 
 type signInInput struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"login" binding:"required"`
+	Password string `json:"pass" binding:"required"`
 }
 
 func (h *Handler) signIn(c *gin.Context) {

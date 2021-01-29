@@ -1,6 +1,8 @@
 package server
 
-type Server struct {
+import "github.com/BurntSushi/toml"
+
+type ServerCFG struct {
 	Addr string `toml:"addr"`
 	Port string `toml:"port"`
 }
@@ -16,5 +18,14 @@ type PostgresCFG struct {
 
 type Config struct {
 	PGcfg  PostgresCFG `toml:"pg_db"`
-	SRVcfg Server      `toml:"server"`
+	SRVcfg ServerCFG   `toml:"server"`
+}
+
+func (cfg *Config) InitConfig() error {
+
+	_, err := toml.DecodeFile("./config.toml", &cfg)
+	if err != nil {
+		return err
+	}
+	return nil
 }
