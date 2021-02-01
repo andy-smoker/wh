@@ -1,14 +1,15 @@
 package repository
 
 import (
-	server "github.com/andy-smoker/wh-server"
+	"github.com/andy-smoker/wh-server/pkg/repository/postgres"
+	"github.com/andy-smoker/wh-server/pkg/structs"
 	"github.com/jmoiron/sqlx"
 )
 
 // интерфейс авторизаци пользователя в программе
 type Authorization interface {
-	CreateUser(user server.User) (int, error)
-	GetUser(username, password string) (server.User, error)
+	CreateUser(user structs.User) (int, error)
+	GetUser(username, password string) (structs.User, error)
 }
 
 // сруктура репозитория
@@ -18,6 +19,6 @@ type Repository struct {
 
 func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{
-		Authorization: NewAuthPostgres(db),
+		Authorization: postgres.NewAuth(db),
 	}
 }

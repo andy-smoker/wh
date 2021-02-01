@@ -1,6 +1,9 @@
-package server
+package config
 
-import "github.com/BurntSushi/toml"
+import (
+	"github.com/BurntSushi/toml"
+	"github.com/andy-smoker/wh-server/pkg/repository/postgres"
+)
 
 type ServerCFG struct {
 	Addr string `toml:"addr"`
@@ -17,8 +20,8 @@ type PostgresCFG struct {
 }
 
 type Config struct {
-	PGcfg  PostgresCFG `toml:"pg_db"`
-	SRVcfg ServerCFG   `toml:"server"`
+	PGcfg  postgres.PostgresCFG `toml:"pg_db"`
+	SRVcfg ServerCFG            `toml:"server"`
 }
 
 func (cfg *Config) InitConfig() error {

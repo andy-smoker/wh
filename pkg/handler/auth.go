@@ -3,12 +3,12 @@ package handler
 import (
 	"net/http"
 
-	server "github.com/andy-smoker/wh-server"
+	"github.com/andy-smoker/wh-server/pkg/structs"
 	"github.com/gin-gonic/gin"
 )
 
 func (h *Handler) signUp(c *gin.Context) {
-	var input server.User
+	var input structs.User
 	// проверяем валидность введённых данных
 	if err := c.BindJSON(&input); err != nil {
 		newErrorResponse(c, http.StatusBadRequest, "invalid body")

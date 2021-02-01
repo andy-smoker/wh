@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	server "github.com/andy-smoker/wh-server"
-	"github.com/andy-smoker/wh-server/repository"
+	"github.com/andy-smoker/wh-server/pkg/repository"
+	"github.com/andy-smoker/wh-server/pkg/structs"
 	"github.com/dgrijalva/jwt-go"
 )
 
@@ -30,7 +30,7 @@ func NewAuthService(repo repository.Authorization) *AuthService {
 	return &AuthService{repo: repo}
 }
 
-func (s *AuthService) CreateUser(user server.User) (int, error) {
+func (s *AuthService) CreateUser(user structs.User) (int, error) {
 	user.Pass = generatePasswordHash(user.Pass)
 	return s.repo.CreateUser(user)
 }

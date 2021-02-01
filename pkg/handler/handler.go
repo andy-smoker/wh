@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/andy-smoker/wh-server/service"
+	"github.com/andy-smoker/wh-server/pkg/service"
 	"github.com/gin-gonic/gin"
 )
 

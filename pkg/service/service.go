@@ -1,13 +1,14 @@
 package service
 
 import (
-	server "github.com/andy-smoker/wh-server"
-	"github.com/andy-smoker/wh-server/repository"
+	"github.com/andy-smoker/wh-server/pkg/repository"
+	"github.com/andy-smoker/wh-server/pkg/structs"
 )
 
 type Authorization interface {
-	CreateUser(user server.User) (int, error)
+	CreateUser(user structs.User) (int, error)
 	GenerateToken(username, password string) (string, error)
+	ParseToken(accessToken string) (int, error)
 }
 
 type Service struct {

@@ -1,4 +1,4 @@
-package server
+package structs
 
 type User struct {
 	ID       int    `json:"-" db:"id"`

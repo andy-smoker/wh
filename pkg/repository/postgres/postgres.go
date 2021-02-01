@@ -1,9 +1,8 @@
-package repository
+package postgres
 
 import (
 	"fmt"
 
-	server "github.com/andy-smoker/wh-server"
 	"github.com/jmoiron/sqlx"
 
 	// postgres driver
@@ -15,8 +14,17 @@ const (
 	userTable = "users"
 )
 
+type PostgresCFG struct {
+	Host     string `toml:"host"`
+	Port     string `toml:"port"`
+	Username string `toml:"username"`
+	Password string `toml:"password"`
+	DBName   string `toml:"dbname"`
+	SSLMode  string `toml:"sslmode"`
+}
+
 // создаём новое подключение к postgresql
-func NewPostgresDB(cfg server.PostgresCFG) (*sqlx.DB, error) {
+func NewDB(cfg PostgresCFG) (*sqlx.DB, error) {
 	// connect to postgresdb
 	db, err := sqlx.Open("postgres", fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=%s",
 		cfg.Host, cfg.Port, cfg.DBName, cfg.Username, cfg.Password, cfg.SSLMode))
