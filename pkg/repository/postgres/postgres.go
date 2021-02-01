@@ -11,8 +11,18 @@ import (
 
 const (
 	// название таблиц в базе данных
-	userTable = "users"
+	userTable    = "users"
+	storageTable = "storages"
+	itemTable    = "items"
 )
+
+type AuthPostgres struct {
+	db *sqlx.DB
+}
+
+type WHPostgres struct {
+	db *sqlx.DB
+}
 
 type PostgresCFG struct {
 	Host     string `toml:"host"`

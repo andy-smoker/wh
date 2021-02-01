@@ -12,13 +12,19 @@ type Authorization interface {
 	GetUser(username, password string) (structs.User, error)
 }
 
+type Warehouse interface {
+	CreateItem(item structs.WHitem) (int, error)
+}
+
 // сруктура репозитория
 type Repository struct {
 	Authorization
+	Warehouse
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{
 		Authorization: postgres.NewAuth(db),
+		Warehouse:     postgres.NewWH(db),
 	}
 }

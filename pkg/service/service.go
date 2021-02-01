@@ -11,14 +11,20 @@ type Authorization interface {
 	ParseToken(accessToken string) (int, error)
 }
 
+type Warehouse interface {
+	CreateItem(item structs.WHitem) (int, error)
+}
+
 type Service struct {
 	Authorization
+	Warehouse
 }
 
 func NewService(repo *repository.Repository) *Service {
 	{
 		return &Service{
 			Authorization: NewAuthService(repo),
+			Warehouse:     NewWHService(repo),
 		}
 	}
 }
