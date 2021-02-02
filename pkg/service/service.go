@@ -13,6 +13,7 @@ type Authorization interface {
 
 type Warehouse interface {
 	CreateItem(item structs.WHitem) (int, error)
+	GetItem(itemID int) (structs.WHitem, error)
 }
 
 type Service struct {

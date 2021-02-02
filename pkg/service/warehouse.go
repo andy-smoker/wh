@@ -16,3 +16,7 @@ func NewWHService(repo repository.Warehouse) *WHservice {
 func (s *WHservice) CreateItem(item structs.WHitem) (int, error) {
 	return s.repo.CreateItem(item)
 }
+
+func (s *WHservice) GetItem(itemID int) (structs.WHitem, error) {
+	return s.repo.GetItem(itemID)
+}

@@ -26,7 +26,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		wh := api.Group("/wh")
 		{
 			wh.POST("/", h.CreateItem)
-			wh.GET("/")
+			wh.GET("/", h.GetItem)
 			wh.GET("/:id")
 			wh.PUT("/:id")
 			wh.DELETE("/:id")
