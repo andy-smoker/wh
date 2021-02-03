@@ -19,13 +19,11 @@ func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 		return 0, err
 	}
 	var (
-		id       int
-		colums   [2]string
-		args     []interface{}
-		itemType string
+		colums [2]string
+		args   []interface{}
 	)
 	if strg := &item.Item.Strorage; strg != nil {
-		itemType = "storage"
+		item.ItemsType = "storage"
 		colums[0] = "title, volume, type, size"
 		colums[1] = "$1,$2,$3,$4"
 		args = append(args, strg.Title, strg.Volume, strg.Type, strg.Size)
@@ -36,16 +34,16 @@ func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 	}
 	query := fmt.Sprintf("insert into %s (%s) values(%s) returning id", storageTable, colums[0], colums[1])
 	row := r.db.QueryRow(query, args...)
-	if err := row.Scan(&id); err != nil {
+	if err := row.Scan(&item.ItemID); err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 	_, err = tx.Exec(fmt.Sprintf("insert into %s (item_id, items_type, in_stock) values($1,$2,$3)", itemTable),
-		id, itemType, true)
+		item.ItemID, item.ItemsType, true)
 	if err != nil {
 		return 0, err
 	}
-	return id, tx.Commit()
+	return item.ItemID, tx.Commit()
 }
 
 func (r *WHPostgres) GetItem(id int) (structs.WHitem, error) {
