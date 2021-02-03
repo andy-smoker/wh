@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/andy-smoker/wh-server/pkg/structs"
 	"github.com/gin-gonic/gin"
@@ -28,15 +29,35 @@ func (h *Handler) CreateItem(c *gin.Context) {
 }
 
 func (h *Handler) GetItem(c *gin.Context) {
-	var input structs.WHitem
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
 
+		newErrorResponse(c, http.StatusBadRequest, "invalid id param")
+	}
+	item, err := h.services.Warehouse.GetItem(id)
+	if err != nil {
+		fmt.Println(err)
+		newErrorResponse(c, http.StatusBadRequest, "no rows")
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
+func (h *Handler) UpdateItem(c *gin.Context) {
+	var input structs.WHitem
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		newErrorResponse(c, http.StatusBadRequest, "invalid id param")
+	}
+	input.ID = id
 	if err := c.BindJSON(&input); err != nil {
 		fmt.Println(input)
 		newErrorResponse(c, http.StatusBadRequest, "invalid body")
 		return
 	}
-	item, err := h.services.Warehouse.GetItem(input.ID)
+	item, err := h.services.Warehouse.UpdateItem(input)
 	if err != nil {
+		fmt.Println(err)
 		newErrorResponse(c, http.StatusBadRequest, "invalid body")
 		return
 	}

@@ -9,10 +9,11 @@ type User struct {
 }
 
 type WHitem struct {
-	ID      int        `json:"id"`
-	itemID  int        `json:"item_id"`
-	Item    WHitemType `json:"item" `
-	InStock bool       `json:"in_stock"`
+	ID        int        `json:"id"`
+	ItemID    int        `json:"item_id"`
+	Item      WHitemType `json:"item"`
+	ItemsType string     `json:"items_type"`
+	InStock   bool       `json:"in_stock"`
 }
 
 type WHitemType struct {

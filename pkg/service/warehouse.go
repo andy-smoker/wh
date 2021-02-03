@@ -20,3 +20,7 @@ func (s *WHservice) CreateItem(item structs.WHitem) (int, error) {
 func (s *WHservice) GetItem(itemID int) (structs.WHitem, error) {
 	return s.repo.GetItem(itemID)
 }
+
+func (s *WHservice) UpdateItem(item structs.WHitem) (structs.WHitem, error) {
+	return s.repo.UpdateItem(item)
+}

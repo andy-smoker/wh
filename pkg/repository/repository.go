@@ -15,6 +15,7 @@ type Authorization interface {
 type Warehouse interface {
 	CreateItem(item structs.WHitem) (int, error)
 	GetItem(id int) (structs.WHitem, error)
+	UpdateItem(item structs.WHitem) (structs.WHitem, error)
 }
 
 // сруктура репозитория
