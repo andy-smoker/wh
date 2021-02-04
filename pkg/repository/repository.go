@@ -17,6 +17,7 @@ type Warehouse interface {
 	GetItem(id int) (structs.WHitem, error)
 	UpdateItem(item structs.WHitem) (structs.WHitem, error)
 	DeleteItem(id int, itemType string) error
+	GetItemsList(itemsType string) ([]interface{}, error)
 }
 
 // сруктура репозитория

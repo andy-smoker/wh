@@ -28,3 +28,7 @@ func (s *WHservice) UpdateItem(item structs.WHitem) (structs.WHitem, error) {
 func (s *WHservice) DeleteItem(id int, itemType string) error {
 	return s.repo.DeleteItem(id, itemType)
 }
+
+func (s *WHservice) GetItemsList(itemsType string) ([]interface{}, error) {
+	return s.repo.GetItemsList(itemsType)
+}

@@ -1,7 +1,6 @@
 package postgres
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -19,20 +18,20 @@ func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 		return 0, err
 	}
 	var (
-		colums [2]string
-		args   []interface{}
+		columns [2]string
+		args    []interface{}
 	)
 	if strg := &item.Item.Strorage; strg != nil {
 		item.ItemsType = "storage"
-		colums[0] = "title, volume, type, size"
-		colums[1] = "$1,$2,$3,$4"
+		columns[0] = "title, volume, type, size"
+		columns[1] = "$1,$2,$3,$4"
 		args = append(args, strg.Title, strg.Volume, strg.Type, strg.Size)
 	} else if &item.Item.Monitor != nil {
 		fmt.Println(item.Item.Monitor)
 	} else {
 		return 0, errors.New("invalid body")
 	}
-	query := fmt.Sprintf("insert into %s (%s) values(%s) returning id", storageTable, colums[0], colums[1])
+	query := fmt.Sprintf("insert into %s (%s) values(%s) returning id", storageTable, columns[0], columns[1])
 	row := r.db.QueryRow(query, args...)
 	if err := row.Scan(&item.ItemID); err != nil {
 		tx.Rollback()
@@ -69,6 +68,42 @@ func (r *WHPostgres) GetItem(id int) (structs.WHitem, error) {
 	return item, err
 }
 
+func (r *WHPostgres) GetItemsList(itemsType string) ([]interface{}, error) {
+	var (
+		items   []interface{}
+		table   string
+		columns string
+		args    []interface{}
+		item    func() (interface{}, []interface{})
+	)
+	switch itemsType {
+	case "storage":
+		columns = "title, volume, type, size"
+		table = storageTable
+		item = func() (pointer interface{}, dest []interface{}) {
+			tmp := new(structs.Strorage)
+
+			dest = append(dest, &tmp.Title, &tmp.Volume, &tmp.Type, &tmp.Size)
+			pointer = tmp
+			return
+		}
+	default:
+		return items, errors.New("invalid type")
+	}
+	query := fmt.Sprintf("select %s from %s", columns, table)
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return items, err
+	}
+	for rows.Next() {
+		pointer, dest := item()
+		rows.Scan(dest...)
+		items = append(items, pointer)
+	}
+	return items, nil
+
+}
+
 func (r *WHPostgres) UpdateItem(item structs.WHitem) (structs.WHitem, error) {
 	var (
 		query   string
@@ -91,11 +126,11 @@ func (r *WHPostgres) UpdateItem(item structs.WHitem) (structs.WHitem, error) {
 		return item, nil
 	}
 	query = fmt.Sprintf("update %s set %s where id=$1", table, columns)
-	err := r.db.Get(&item.Item.Strorage, query, args...)
-	if err == sql.ErrNoRows {
-		return item, nil
+	_, err := r.db.Exec(query, args...)
+	if err != nil {
+		return item, err
 	}
-	return item, err
+	return item, nil
 }
 
 func (r *WHPostgres) DeleteItem(id int, itemsType string) error {
