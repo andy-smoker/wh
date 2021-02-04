@@ -29,7 +29,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 			wh.GET("/")
 			wh.GET("/:id", h.GetItem)
 			wh.PUT("/:id", h.UpdateItem)
-			wh.DELETE("/:id")
+			wh.DELETE("/:id", h.DeleteItem)
 
 			item := wh.Group(":id/details")
 			{

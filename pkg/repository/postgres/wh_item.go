@@ -41,6 +41,7 @@ func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 	_, err = tx.Exec(fmt.Sprintf("insert into %s (item_id, items_type, in_stock) values($1,$2,$3)", itemTable),
 		item.ItemID, item.ItemsType, true)
 	if err != nil {
+		tx.Rollback()
 		return 0, err
 	}
 	return item.ItemID, tx.Commit()
@@ -86,12 +87,39 @@ func (r *WHPostgres) UpdateItem(item structs.WHitem) (structs.WHitem, error) {
 		columns = "title=$2, volume=$3, size=$4, type=$5"
 		args = append(args, item.ItemID, tmp.Title, tmp.Volume, tmp.Size, tmp.Type)
 		table = storageTable
+	default:
+		return item, nil
 	}
 	query = fmt.Sprintf("update %s set %s where id=$1", table, columns)
-	fmt.Println(args)
 	err := r.db.Get(&item.Item.Strorage, query, args...)
 	if err == sql.ErrNoRows {
 		return item, nil
 	}
 	return item, err
+}
+
+func (r *WHPostgres) DeleteItem(id int, itemsType string) error {
+	tx, err := r.db.Begin()
+	var (
+		itemID int
+		query  string
+		table  string
+	)
+	query = fmt.Sprintf("delete from %s where id=$1 returning item_id", itemTable)
+	row := r.db.QueryRow(query, id)
+	if err := row.Scan(&itemID); err != nil {
+		tx.Rollback()
+		return err
+	}
+	switch itemsType {
+	case "storage":
+		table = storageTable
+	}
+	query = fmt.Sprintf("delete from %s where id=$1", table)
+	_, err = r.db.Exec(query, itemID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
 }

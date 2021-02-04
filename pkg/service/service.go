@@ -15,6 +15,7 @@ type Warehouse interface {
 	CreateItem(item structs.WHitem) (int, error)
 	GetItem(itemID int) (structs.WHitem, error)
 	UpdateItem(item structs.WHitem) (structs.WHitem, error)
+	DeleteItem(id int, itemType string) error
 }
 
 type Service struct {

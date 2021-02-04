@@ -12,7 +12,6 @@ import (
 func (h *Handler) CreateItem(c *gin.Context) {
 	var input structs.WHitem
 	if err := c.BindJSON(&input); err != nil {
-		fmt.Println(input)
 		newErrorResponse(c, http.StatusBadRequest, "invalid body")
 		return
 	}
@@ -62,4 +61,23 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, item)
+}
+
+func (h *Handler) DeleteItem(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		newErrorResponse(c, http.StatusBadRequest, "invalid id param")
+	}
+	var input structs.WHitem
+	if err := c.BindJSON(&input); err != nil {
+		newErrorResponse(c, http.StatusBadRequest, "invalid body")
+		return
+	}
+	err = h.services.Warehouse.DeleteItem(id, input.ItemsType)
+	if err != nil {
+		fmt.Println(err)
+		newErrorResponse(c, http.StatusBadRequest, "no rows")
+		return
+	}
+	c.JSON(http.StatusOK, true)
 }
