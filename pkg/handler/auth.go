@@ -17,7 +17,7 @@ func (h *Handler) signUp(c *gin.Context) {
 	// добаляем новго пользователя в БД
 	id, err := h.services.CreateUser(input)
 	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		newErrorResponse(c, http.StatusInternalServerError, "something went wrong")
 		return
 	}
 	// отправляем статус ОК(200) с id созданного пользователя
