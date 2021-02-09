@@ -104,3 +104,40 @@ func TestHandler_userIdentity(t *testing.T) {
 		})
 	}
 }
+
+func TestGetUserID(t *testing.T) {
+	var getContext = func(id int) *gin.Context {
+		ctx := &gin.Context{}
+		ctx.Set(userCtx, id)
+		return ctx
+	}
+	testTable := []struct {
+		name       string
+		ctx        *gin.Context
+		id         int
+		shouldFail bool
+	}{
+		{
+			name: "OK",
+			ctx:  getContext(1),
+			id:   1,
+		},
+		{
+			name:       "Empty",
+			ctx:        &gin.Context{},
+			shouldFail: true,
+		},
+	}
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			id, err := getUserID(test.ctx)
+			if test.shouldFail {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.Equal(t, id, test.id)
+		})
+	}
+}

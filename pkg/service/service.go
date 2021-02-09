@@ -5,7 +5,6 @@ import (
 	"github.com/andy-smoker/wh-server/pkg/structs"
 )
 
-// +build test
 //go:generate mockgen -source service.go -destination=mocks/mock.go package=mock
 
 type Authorization interface {
