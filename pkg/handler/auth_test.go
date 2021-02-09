@@ -50,7 +50,7 @@ func TestHandlerSignUp(t *testing.T) {
 			expectedRequestBody: `{"message":"invalid body"}`,
 		},
 		{
-			name:      "OK",
+			name:      "Internal Error",
 			inputBody: `{"login":"test", "username":"test", "pass":"qwerty"}`,
 			inputUser: structs.User{
 				Login:    "test",
