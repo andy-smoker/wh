@@ -9,54 +9,46 @@ type User struct {
 }
 
 type WHitem struct {
-	ID        int        `json:"id"`
-	ItemID    int        `json:"item_id"`
-	Item      WHitemType `json:"item"`
-	ItemsType string     `json:"items_type"`
-	InStock   bool       `json:"in_stock"`
+	ID int `json:"id"`
+
+	ItemProps WHitemProps `json:"item"`
+	ItemsType string      `json:"items_type"`
+	InStock   bool        `json:"in_stock"`
 }
 
-type WHitemType struct {
-	Strorage `json:"storage"`
-	Monitor  `json:"monitor"`
+type WHitemProps struct {
+	ID     int    `json:"item_id"`
+	Title  string `json:"title"`
+	Vendor string `json:"vendor" `
+	Strorage
+	Monitor
 }
 
 type Strorage struct {
-	Title  string `json:"title" `
 	Size   string `json:"size" `
 	Volume int    `json:"volume" `
 	Type   string `json:"type" "`
-	Vendor string `json:"vendor" `
 }
 
 type Monitor struct {
-	Title    string `json:"title" `
 	Diagonal int    `json:"diagonal" `
 	Matrix   string `json:"matrix" `
-	Vendor   string `json:"vendor"`
 }
 
 type Printer struct {
-	Title  string `json:"title" `
-	Type   string `json:"type" `
-	Vendor string `json:"vendor" `
+	Type string `json:"type" `
 }
 
 type CPU struct {
-	Type   string  `json:"type" `
-	Freq   float64 `json:"freq" `
-	Socket string  `json:"socket" `
-	Vendor string  `json:"vendor" `
+	CPUType   string  `json:"type" `
+	CPUFreq   float64 `json:"freq" `
+	CPUSocket string  `json:"socket" `
 }
 
 type GPU struct {
-	Type   string `json:"type" `
-	Memory int    `json:"memory" `
-	Vendor string `json:"vendor" `
+	GPUMemory int `json:"memory" `
 }
 
 type RUM struct {
-	Type   string `json:"type"`
-	Memory int    `json:"memory" `
-	Vendor string `json:"vendor"`
+	RUNMemory int `json:"memory" `
 }

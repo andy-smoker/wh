@@ -21,29 +21,30 @@ func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 		columns [2]string
 		args    []interface{}
 	)
-	if strg := &item.Item.Strorage; strg != nil {
-		item.ItemsType = "storage"
+	itemProps := &item.ItemProps
+	if item.ItemsType == "storage" {
 		columns[0] = "title, volume, type, size"
 		columns[1] = "$1,$2,$3,$4"
-		args = append(args, strg.Title, strg.Volume, strg.Type, strg.Size)
-	} else if &item.Item.Monitor != nil {
-		fmt.Println(item.Item.Monitor)
+		args = append(args, itemProps.Title, itemProps.Volume, itemProps.Type, itemProps.Size)
+	} else if &item.ItemProps.Monitor != nil {
+		fmt.Println(item.ItemProps.Monitor)
 	} else {
+		tx.Rollback()
 		return 0, errors.New("invalid body")
 	}
 	query := fmt.Sprintf("insert into %s (%s) values(%s) returning id", storageTable, columns[0], columns[1])
 	row := r.db.QueryRow(query, args...)
-	if err := row.Scan(&item.ItemID); err != nil {
+	if err := row.Scan(&item.ItemProps.ID); err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 	_, err = tx.Exec(fmt.Sprintf("insert into %s (item_id, items_type, in_stock) values($1,$2,$3)", itemTable),
-		item.ItemID, item.ItemsType, true)
+		item.ItemProps.ID, item.ItemsType, true)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
-	return item.ItemID, tx.Commit()
+	return item.ID, tx.Commit()
 }
 
 func (r *WHPostgres) GetItem(id int) (structs.WHitem, error) {
@@ -52,9 +53,10 @@ func (r *WHPostgres) GetItem(id int) (structs.WHitem, error) {
 		columns string
 		table   string
 	)
+	itemProps := &item.ItemProps
 	query := fmt.Sprintf("select item_id, items_type from %s where id=$1", itemTable)
 	row := r.db.QueryRow(query, id)
-	if err := row.Scan(&item.ItemID, &item.ItemsType); err != nil {
+	if err := row.Scan(&item.ItemProps.ID, &item.ItemsType); err != nil {
 		return item, err
 	}
 	item.ID = id
@@ -64,33 +66,63 @@ func (r *WHPostgres) GetItem(id int) (structs.WHitem, error) {
 		table = storageTable
 	}
 	query = fmt.Sprintf("select %s from %s where id=$1", columns, table)
-	err := r.db.Get(&item.Item.Strorage, query, item.ItemID)
+	err := r.db.Get(itemProps, query, item.ItemProps.ID)
+	fmt.Println(item)
 	return item, err
 }
 
-func (r *WHPostgres) GetItemsList(itemsType string) ([]interface{}, error) {
-	var (
-		items   []interface{}
-		table   string
+func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
+	type selection struct {
 		columns string
-		args    []interface{}
-		item    func() (interface{}, []interface{})
-	)
-	switch itemsType {
-	case "storage":
-		columns = "title, volume, type, size"
-		table = storageTable
-		item = func() (pointer interface{}, dest []interface{}) {
-			tmp := new(structs.Strorage)
+		from    string
+		where   string
+	}
 
-			dest = append(dest, &tmp.Title, &tmp.Volume, &tmp.Type, &tmp.Size)
-			pointer = tmp
+	var (
+		items []interface{}
+		query string
+		joins []selection
+		args  []interface{}
+		item  func() (interface{}, []interface{})
+	)
+
+	joins = append(joins, selection{
+		columns: "i.id, i.in_stock",
+		from:    "from items as i ",
+		where:   "where i.in_stock=true",
+	})
+
+	switch filter {
+	case "storage":
+		joins = append(joins, selection{
+			columns: ", s.title, s.volume, s.type, s.size ",
+			from:    fmt.Sprintf("join %s as s on s.id = i.item_id ", storageTable),
+		})
+		item = func() (pointer interface{}, dest []interface{}) {
+			i := structs.WHitem{}
+
+			dest = append(dest, &i.ID, &i.InStock, &i.ItemProps.Title, &i.ItemProps.Volume, &i.ItemProps.Type, &i.ItemProps.Size)
+			pointer = &i
 			return
 		}
+
 	default:
 		return items, errors.New("invalid type")
 	}
-	query := fmt.Sprintf("select %s from %s", columns, table)
+	genQuery := func() string {
+		var (
+			columns string
+			tables  string
+			w       string
+		)
+		for _, join := range joins {
+			columns += join.columns
+			tables += join.from
+			w += join.where
+		}
+		return fmt.Sprintf("select %s %s %s", columns, tables, w)
+	}
+	query = genQuery()
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return items, err
@@ -113,14 +145,14 @@ func (r *WHPostgres) UpdateItem(item structs.WHitem) (structs.WHitem, error) {
 	)
 	query = fmt.Sprintf("update %s set in_stock=$1 where id=$2 returning item_id", itemTable)
 	row := r.db.QueryRow(query, item.InStock, item.ID)
-	if err := row.Scan(&item.ItemID); err != nil {
+	if err := row.Scan(&item.ItemProps.ID); err != nil {
 		return item, err
 	}
 	switch item.ItemsType {
 	case "storage":
-		tmp := item.Item.Strorage
+		tmp := item.ItemProps
 		columns = "title=$2, volume=$3, size=$4, type=$5"
-		args = append(args, item.ItemID, tmp.Title, tmp.Volume, tmp.Size, tmp.Type)
+		args = append(args, item.ItemProps.ID, tmp.Title, tmp.Volume, tmp.Size, tmp.Type)
 		table = storageTable
 	default:
 		return item, nil
