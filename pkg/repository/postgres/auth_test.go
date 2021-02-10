@@ -17,8 +17,7 @@ func TestCreateUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db error: %s", err)
 	}
-	xdb := sqlx.NewDb(db, "postgres")
-	r := NewAuth(xdb)
+	r := NewAuth(sqlx.NewDb(db, "postgres"))
 	testTable := []struct {
 		name    string
 		mock    func()
@@ -60,6 +59,65 @@ func TestCreateUser(t *testing.T) {
 			test.mock()
 
 			got, err := r.CreateUser(test.input)
+			if test.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, test.want, got)
+			}
+		})
+	}
+}
+
+func TestGetUser(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("db error: %s", err)
+	}
+	type args struct {
+		login string
+		pass  string
+	}
+	r := NewAuth(sqlx.NewDb(db, "postgres"))
+	testTable := []struct {
+		name    string
+		mock    func()
+		input   args
+		want    structs.User
+		wantErr bool
+	}{
+		{
+			name: "OK",
+			mock: func() {
+				rows := sqlmock.NewRows([]string{"id", "login", "username", "pass"}).
+					AddRow(1, "test", "test", "pass")
+				mock.ExpectQuery("select (.+) from user").
+					WithArgs("test", "pass").WillReturnRows(rows)
+			},
+			input: args{"test", "pass"},
+			want: structs.User{
+				ID:       1,
+				Login:    "test",
+				Username: "test",
+				Pass:     "pass",
+			},
+		},
+		{
+			name: "Not Found",
+			mock: func() {
+				rows := sqlmock.NewRows([]string{"id", "login", "username", "pass"})
+				mock.ExpectQuery("select (.+) from user").
+					WithArgs("test", "pass").WillReturnRows(rows)
+			},
+			input:   args{"not", "found"},
+			wantErr: true,
+		},
+	}
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			test.mock()
+
+			got, err := r.GetUser(test.input.login, test.input.pass)
 			if test.wantErr {
 				assert.Error(t, err)
 			} else {
