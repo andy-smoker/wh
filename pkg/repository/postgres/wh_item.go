@@ -14,6 +14,7 @@ func NewWH(db *sqlx.DB) *WHPostgres {
 
 func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 	tx, err := r.db.Begin()
+
 	if err != nil {
 		return 0, err
 	}
@@ -23,9 +24,11 @@ func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 	)
 	itemProps := &item.ItemProps
 	if item.ItemsType == "storage" {
+
 		columns[0] = "title, volume, type, size"
 		columns[1] = "$1,$2,$3,$4"
 		args = append(args, itemProps.Title, itemProps.Volume, itemProps.Type, itemProps.Size)
+
 	} else if &item.ItemProps.Monitor != nil {
 		fmt.Println(item.ItemProps.Monitor)
 	} else {
@@ -38,13 +41,15 @@ func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 		tx.Rollback()
 		return 0, err
 	}
-	_, err = tx.Exec(fmt.Sprintf("insert into %s (item_id, items_type, in_stock) values($1,$2,$3)", itemTable),
-		item.ItemProps.ID, item.ItemsType, true)
+	query = fmt.Sprintf("insert into %s (item_id, items_type, in_stock) values($1,$2,$3) returning id", itemTable)
+	res, err := tx.Exec(query, item.ItemProps.ID, item.ItemsType, true)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
-	return item.ID, tx.Commit()
+
+	id, _ := res.RowsAffected()
+	return int(id), tx.Commit()
 }
 
 func (r *WHPostgres) GetItem(id int) (structs.WHitem, error) {
