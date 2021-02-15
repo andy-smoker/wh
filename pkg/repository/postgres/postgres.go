@@ -33,7 +33,7 @@ type PostgresCFG struct {
 	SSLMode  string `toml:"sslmode"`
 }
 
-//go:generate mockgen -source=postgres.go -destination mocks/postgres.go
+
 
 // создаём новое подключение к postgresql
 func NewDB(cfg PostgresCFG) (*sqlx.DB, error) {

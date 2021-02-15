@@ -12,6 +12,28 @@ func NewWH(db *sqlx.DB) *WHPostgres {
 	return &WHPostgres{db: db}
 }
 
+type pgSelect struct {
+	columns string
+	table   string
+	sample  string
+	on      string
+}
+
+func selectQuery(s []pgSelect) string {
+	var (
+		columns string
+		tables  string
+		sample  string
+	)
+	for _, join := range s {
+		columns += join.columns
+		tables += fmt.Sprintf("%s %s", join.table, join.on)
+		sample += (join.sample)
+	}
+	return fmt.Sprintf("select %s %s where %s", columns, tables, sample)
+}
+
+// CreateItem -  create new item
 func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 	tx, err := r.db.Begin()
 
@@ -22,6 +44,7 @@ func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 		columns [2]string
 		args    []interface{}
 	)
+
 	itemProps := &item.ItemProps
 	if item.ItemsType == "storage" {
 
@@ -52,30 +75,62 @@ func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 	return int(id), tx.Commit()
 }
 
+// GetItem - get item by ID
 func (r *WHPostgres) GetItem(id int) (structs.WHitem, error) {
-	item := structs.WHitem{}
+	dest := struct {
+		ID      int    `db:"item_id"`
+		Type    string `db:"items_type"`
+		InStock bool   `db:"in_stock"`
+	}{}
+	query := fmt.Sprintf("select item_id, items_type, in_stock from %s where id=$1", itemTable)
+	err := r.db.Get(&dest, query, id)
+	item := structs.WHitem{
+		ID:        id,
+		ItemsType: dest.Type,
+		InStock:   dest.InStock,
+		ItemProps: structs.WHitemProps{
+			ID: dest.ID,
+		},
+	}
+	if err != nil {
+		return item, err
+	}
+
+	type tmp struct {
+		ID   int    `db:"item_id"`
+		Type string `db:"items_type"`
+	}
 	var (
 		columns string
 		table   string
+		pgS     []pgSelect
 	)
+	pgS = append(pgS, pgSelect{
+		columns: "i.id",
+		table:   "items as i",
+		sample:  "i.id=$1",
+	})
 	itemProps := &item.ItemProps
-	query := fmt.Sprintf("select item_id, items_type from %s where id=$1", itemTable)
-	row := r.db.QueryRow(query, id)
-	if err := row.Scan(&item.ItemProps.ID, &item.ItemsType); err != nil {
-		return item, err
-	}
-	item.ID = id
+
 	switch item.ItemsType {
 	case "storage":
+		pgS = append(pgS, pgSelect{
+			columns: "s.id, s.volume, s.type, s.size",
+			table:   "join storage as s",
+			on:      "on s.id = i.item_id",
+			sample:  `i.items_type = 'storage'`,
+		})
 		columns = "title, volume, size, type"
 		table = storageTable
+	default:
+		return item, errors.New("invalid type")
 	}
 	query = fmt.Sprintf("select %s from %s where id=$1", columns, table)
-	err := r.db.Get(itemProps, query, item.ItemProps.ID)
-	fmt.Println(item)
+	err = r.db.Get(itemProps, query, item.ItemProps.ID)
 	return item, err
 }
 
+// GetItemsList - get item list by filter
 func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
 	type selection struct {
 		columns string
@@ -86,22 +141,23 @@ func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
 	var (
 		items []interface{}
 		query string
-		joins []selection
+		joins []pgSelect
 		args  []interface{}
 		item  func() (interface{}, []interface{})
 	)
 
-	joins = append(joins, selection{
+	joins = append(joins, pgSelect{
 		columns: "i.id, i.in_stock",
-		from:    "from items as i ",
-		where:   "where i.in_stock=true",
+		table:   "from items as i ",
+		sample:  "i.in_stock=true",
 	})
 
 	switch filter {
 	case "storage":
-		joins = append(joins, selection{
+		joins = append(joins, pgSelect{
 			columns: ", s.title, s.volume, s.type, s.size ",
-			from:    fmt.Sprintf("join %s as s on s.id = i.item_id ", storageTable),
+			table:   fmt.Sprintf("join %s as s ", storageTable),
+			on:      "on s.id = i.item_id ",
 		})
 		item = func() (pointer interface{}, dest []interface{}) {
 			i := structs.WHitem{}
@@ -110,24 +166,16 @@ func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
 			pointer = &i
 			return
 		}
-
+	case "all":
+		joins = append(joins, pgSelect{
+			columns: ", all.title, i.in_stock",
+		})
 	default:
 		return items, errors.New("invalid type")
 	}
-	genQuery := func() string {
-		var (
-			columns string
-			tables  string
-			w       string
-		)
-		for _, join := range joins {
-			columns += join.columns
-			tables += join.from
-			w += join.where
-		}
-		return fmt.Sprintf("select %s %s %s", columns, tables, w)
-	}
-	query = genQuery()
+
+	query = selectQuery(joins)
+	fmt.Println(query)
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return items, err
