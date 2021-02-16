@@ -184,3 +184,111 @@ func TestGetItem(t *testing.T) {
 		})
 	}
 }
+
+func TestGetItemsList(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("db error: %s", err)
+	}
+	r := NewWH(sqlx.NewDb(db, "postgres"))
+
+	// make slice of WHitem pointers for test
+	makeWant := func(input []interface{}) (want []interface{}) {
+		for _, i := range input {
+			out := i.(structs.WHitem)
+			want = append(want, &out)
+		}
+		return
+	}
+	testTable := []struct {
+		name    string
+		mock    func()
+		input   string
+		want    []interface{}
+		wantErr bool
+	}{
+		{
+			name: "OK_all",
+			mock: func() {
+				rows := mock.NewRows([]string{"id", "items_type", "title", "in_stock"}).
+					AddRow(1, "storage", "test1", true).AddRow(2, "monitor", "test2", false)
+				mock.ExpectQuery("select (.+)").WillReturnRows(rows)
+			},
+			input: "all",
+			want: makeWant([]interface{}{
+				structs.WHitem{
+					ID:        1,
+					ItemsType: "storage",
+					ItemProps: structs.WHitemProps{
+						Title: "test1",
+					},
+					InStock: true,
+				},
+				structs.WHitem{
+					ID:        2,
+					ItemsType: "monitor",
+					ItemProps: structs.WHitemProps{
+						Title: "test2",
+					},
+					InStock: false,
+				},
+			}),
+		},
+		{
+			name: "OK_type",
+			mock: func() {
+				rows := mock.NewRows([]string{"id", "in_stock", "title", "volume", "type", "size"}).
+					AddRow(1, true, "test1", 200, "HDD", "2.5").AddRow(2, false, "test2", 200, "HDD", "2.5")
+				mock.ExpectQuery("select (.+)").WillReturnRows(rows)
+			},
+			input: "storage",
+			want: makeWant([]interface{}{
+				structs.WHitem{
+					ID:        1,
+					ItemsType: "storage",
+					ItemProps: structs.WHitemProps{
+						Title: "test1",
+						Strorage: structs.Strorage{
+							Size:   "2.5",
+							Volume: 200,
+							Type:   "HDD",
+						},
+					},
+					InStock: true,
+				},
+				structs.WHitem{
+					ID:        2,
+					ItemsType: "storage",
+					ItemProps: structs.WHitemProps{
+						Title: "test2",
+						Strorage: structs.Strorage{
+							Size:   "2.5",
+							Volume: 200,
+							Type:   "HDD",
+						},
+					},
+					InStock: false,
+				},
+			}),
+		},
+		{
+			name:    "Invalid Filter",
+			mock:    func() {},
+			input:   "strorge",
+			wantErr: true,
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			test.mock()
+			got, err := r.GetItemsList(test.input)
+			if test.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, test.want, got)
+			}
+		})
+	}
+}

@@ -166,7 +166,7 @@ func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
 		})
 		item = func() (pointer *structs.WHitem, dest []interface{}) {
 			i := structs.WHitem{}
-
+			i.ItemsType = filter
 			dest = append(dest, &i.ID, &i.InStock, &i.ItemProps.Title, &i.ItemProps.Volume, &i.ItemProps.Type, &i.ItemProps.Size)
 			pointer = &i
 			return
