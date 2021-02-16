@@ -17,7 +17,7 @@ type WHitem struct {
 }
 
 type WHitemProps struct {
-	ID     int    `json:"item_id"`
+	ID     int    `json:"-"`
 	Title  string `json:"title"`
 	Vendor string `json:"vendor" `
 	Strorage
@@ -27,7 +27,7 @@ type WHitemProps struct {
 type Strorage struct {
 	Size   string `json:"size" `
 	Volume int    `json:"volume" `
-	Type   string `json:"type" "`
+	Type   string `json:"type" `
 }
 
 type Monitor struct {

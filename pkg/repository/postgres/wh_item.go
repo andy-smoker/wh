@@ -17,6 +17,7 @@ type pgSelect struct {
 	table   string
 	sample  string
 	on      string
+	orderBy string
 }
 
 func selectQuery(s []pgSelect) string {
@@ -24,13 +25,22 @@ func selectQuery(s []pgSelect) string {
 		columns string
 		tables  string
 		sample  string
+		orderBy string
 	)
 	for _, join := range s {
 		columns += join.columns
 		tables += fmt.Sprintf("%s %s", join.table, join.on)
 		sample += (join.sample)
+		orderBy += (join.orderBy)
 	}
-	return fmt.Sprintf("select %s %s where %s", columns, tables, sample)
+	query := fmt.Sprintf("select %s from %s", columns, tables)
+	if sample != "" {
+		query += fmt.Sprintf(" where %s", sample)
+	}
+	if orderBy != "" {
+		query += fmt.Sprintf(" order by %s", orderBy)
+	}
+	return query
 }
 
 // CreateItem -  create new item
@@ -92,6 +102,7 @@ func (r *WHPostgres) GetItem(id int) (structs.WHitem, error) {
 			ID: dest.ID,
 		},
 	}
+
 	if err != nil {
 		return item, err
 	}
@@ -132,24 +143,18 @@ func (r *WHPostgres) GetItem(id int) (structs.WHitem, error) {
 
 // GetItemsList - get item list by filter
 func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
-	type selection struct {
-		columns string
-		from    string
-		where   string
-	}
-
 	var (
 		items []interface{}
 		query string
 		joins []pgSelect
-		args  []interface{}
-		item  func() (interface{}, []interface{})
+		item  func() (*structs.WHitem, []interface{})
 	)
 
 	joins = append(joins, pgSelect{
 		columns: "i.id, i.in_stock",
-		table:   "from items as i ",
+		table:   "items as i ",
 		sample:  "i.in_stock=true",
+		orderBy: "i.id",
 	})
 
 	switch filter {
@@ -159,7 +164,7 @@ func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
 			table:   fmt.Sprintf("join %s as s ", storageTable),
 			on:      "on s.id = i.item_id ",
 		})
-		item = func() (pointer interface{}, dest []interface{}) {
+		item = func() (pointer *structs.WHitem, dest []interface{}) {
 			i := structs.WHitem{}
 
 			dest = append(dest, &i.ID, &i.InStock, &i.ItemProps.Title, &i.ItemProps.Volume, &i.ItemProps.Type, &i.ItemProps.Size)
@@ -167,16 +172,27 @@ func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
 			return
 		}
 	case "all":
-		joins = append(joins, pgSelect{
-			columns: ", all.title, i.in_stock",
-		})
+		joins[0] = pgSelect{
+			columns: ` a.id, a.items_type, a.title, a.in_stock`,
+			table: `(select i.id,  s.title, i.items_type, i.in_stock
+			from items as i, storages as s where s.id = i.item_id and i.items_type = 'storage'
+			union select i.id,  m.title, i.items_type, i.in_stock
+			from items as i, monitors as m where m.id = i.item_id and i.items_type = 'monitor'
+			) a`,
+			orderBy: `a.id`,
+		}
+		item = func() (pointer *structs.WHitem, dest []interface{}) {
+			i := structs.WHitem{}
+
+			dest = append(dest, &i.ID, &i.ItemsType, &i.ItemProps.Title, &i.InStock)
+			pointer = &i
+			return
+		}
 	default:
 		return items, errors.New("invalid type")
 	}
-
 	query = selectQuery(joins)
-	fmt.Println(query)
-	rows, err := r.db.Query(query, args...)
+	rows, err := r.db.Query(query)
 	if err != nil {
 		return items, err
 	}
