@@ -12,37 +12,6 @@ func NewWH(db *sqlx.DB) *WHPostgres {
 	return &WHPostgres{db: db}
 }
 
-type pgSelect struct {
-	columns string
-	table   string
-	sample  string
-	on      string
-	orderBy string
-}
-
-func selectQuery(s []pgSelect) string {
-	var (
-		columns string
-		tables  string
-		sample  string
-		orderBy string
-	)
-	for _, join := range s {
-		columns += join.columns
-		tables += fmt.Sprintf("%s %s", join.table, join.on)
-		sample += (join.sample)
-		orderBy += (join.orderBy)
-	}
-	query := fmt.Sprintf("select %s from %s", columns, tables)
-	if sample != "" {
-		query += fmt.Sprintf(" where %s", sample)
-	}
-	if orderBy != "" {
-		query += fmt.Sprintf(" order by %s", orderBy)
-	}
-	return query
-}
-
 // CreateItem -  create new item
 func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 	tx, err := r.db.Begin()
@@ -51,15 +20,18 @@ func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 		return 0, err
 	}
 	var (
-		columns [2]string
-		args    []interface{}
+		props []pgQuery
+		args  []interface{}
 	)
 
 	itemProps := &item.ItemProps
 	if item.ItemsType == "storage" {
-
-		columns[0] = "title, volume, type, size"
-		columns[1] = "$1,$2,$3,$4"
+		props = append(props, pgQuery{
+			table:     storageTable,
+			columns:   "title, volume, type, size",
+			values:    "$1,$2,$3,$4",
+			returning: "id",
+		})
 		args = append(args, itemProps.Title, itemProps.Volume, itemProps.Type, itemProps.Size)
 
 	} else if &item.ItemProps.Monitor != nil {
@@ -68,13 +40,19 @@ func (r *WHPostgres) CreateItem(item structs.WHitem) (int, error) {
 		tx.Rollback()
 		return 0, errors.New("invalid body")
 	}
-	query := fmt.Sprintf("insert into %s (%s) values(%s) returning id", storageTable, columns[0], columns[1])
+	query := makeQuery(props, "insert")
 	row := r.db.QueryRow(query, args...)
 	if err := row.Scan(&item.ItemProps.ID); err != nil {
 		tx.Rollback()
 		return 0, err
 	}
-	query = fmt.Sprintf("insert into %s (item_id, items_type, in_stock) values($1,$2,$3) returning id", itemTable)
+	props[0] = pgQuery{
+		table:     itemTable,
+		columns:   "item_id, items_type, in_stock",
+		values:    "$1,$2,$3",
+		returning: "id",
+	}
+	query = makeQuery(props, "insert")
 	res, err := tx.Exec(query, item.ItemProps.ID, item.ItemsType, true)
 	if err != nil {
 		tx.Rollback()
@@ -107,16 +85,12 @@ func (r *WHPostgres) GetItem(id int) (structs.WHitem, error) {
 		return item, err
 	}
 
-	type tmp struct {
-		ID   int    `db:"item_id"`
-		Type string `db:"items_type"`
-	}
 	var (
 		columns string
 		table   string
-		pgS     []pgSelect
+		pgS     []pgQuery
 	)
-	pgS = append(pgS, pgSelect{
+	pgS = append(pgS, pgQuery{
 		columns: "i.id",
 		table:   "items as i",
 		sample:  "i.id=$1",
@@ -125,7 +99,7 @@ func (r *WHPostgres) GetItem(id int) (structs.WHitem, error) {
 
 	switch item.ItemsType {
 	case "storage":
-		pgS = append(pgS, pgSelect{
+		pgS = append(pgS, pgQuery{
 			columns: "s.id, s.volume, s.type, s.size",
 			table:   "join storage as s",
 			on:      "on s.id = i.item_id",
@@ -146,20 +120,20 @@ func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
 	var (
 		items []interface{}
 		query string
-		joins []pgSelect
+		joins []pgQuery
 		item  func() (*structs.WHitem, []interface{})
 	)
 
-	joins = append(joins, pgSelect{
+	joins = append(joins, pgQuery{
 		columns: "i.id, i.in_stock",
 		table:   "items as i ",
-		sample:  "i.in_stock=true",
+		sample:  `i.items_type='storage'`,
 		orderBy: "i.id",
 	})
 
 	switch filter {
 	case "storage":
-		joins = append(joins, pgSelect{
+		joins = append(joins, pgQuery{
 			columns: ", s.title, s.volume, s.type, s.size ",
 			table:   fmt.Sprintf("join %s as s ", storageTable),
 			on:      "on s.id = i.item_id ",
@@ -172,12 +146,14 @@ func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
 			return
 		}
 	case "all":
-		joins[0] = pgSelect{
+		joins[0] = pgQuery{
 			columns: ` a.id, a.items_type, a.title, a.in_stock`,
 			table: `(select i.id,  s.title, i.items_type, i.in_stock
-			from items as i, storages as s where s.id = i.item_id and i.items_type = 'storage'
+			from items as i, storages as s 
+			where s.id = i.item_id and i.items_type = 'storage'
 			union select i.id,  m.title, i.items_type, i.in_stock
-			from items as i, monitors as m where m.id = i.item_id and i.items_type = 'monitor'
+			from items as i, monitors as m 
+			where m.id = i.item_id and i.items_type = 'monitor'
 			) a`,
 			orderBy: `a.id`,
 		}
@@ -191,7 +167,7 @@ func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
 	default:
 		return items, errors.New("invalid type")
 	}
-	query = selectQuery(joins)
+	query = makeQuery(joins, "select")
 	rows, err := r.db.Query(query)
 	if err != nil {
 		return items, err
@@ -207,10 +183,9 @@ func (r *WHPostgres) GetItemsList(filter string) ([]interface{}, error) {
 
 func (r *WHPostgres) UpdateItem(item structs.WHitem) (structs.WHitem, error) {
 	var (
-		query   string
-		columns string
-		args    []interface{}
-		table   string
+		query string
+		props []pgQuery
+		args  []interface{}
 	)
 	query = fmt.Sprintf("update %s set in_stock=$1 where id=$2 returning item_id", itemTable)
 	row := r.db.QueryRow(query, item.InStock, item.ID)
@@ -220,13 +195,16 @@ func (r *WHPostgres) UpdateItem(item structs.WHitem) (structs.WHitem, error) {
 	switch item.ItemsType {
 	case "storage":
 		tmp := item.ItemProps
-		columns = "title=$2, volume=$3, size=$4, type=$5"
+		props = append(props, pgQuery{
+			table: storageTable,
+			set:   "title=$2, volume=$3, size=$4, type=$5",
+		})
 		args = append(args, item.ItemProps.ID, tmp.Title, tmp.Volume, tmp.Size, tmp.Type)
-		table = storageTable
 	default:
 		return item, nil
 	}
-	query = fmt.Sprintf("update %s set %s where id=$1", table, columns)
+	props[0].sample = "id=$1"
+	query = makeQuery(props, "update")
 	_, err := r.db.Exec(query, args...)
 	if err != nil {
 		return item, err
